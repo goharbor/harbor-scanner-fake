@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/heww/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/api"
 )
 
 type memoryItem struct {

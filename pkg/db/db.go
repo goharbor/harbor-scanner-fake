@@ -2,9 +2,8 @@ package db
 
 import (
 	"fmt"
-	"math/rand"
 
-	"github.com/heww/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/api"
 )
 
 type DB struct {
@@ -17,7 +16,7 @@ func (d *DB) Total() int64 {
 }
 
 func (d *DB) Pick() *api.VulnerabilityItem {
-	return d.items[rand.Int63n(d.total)]
+	return d.items[randSeed.Int63n(d.total)]
 }
 
 func (d *DB) UpdateAt() {

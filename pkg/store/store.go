@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/heww/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/api"
 )
 
 var (

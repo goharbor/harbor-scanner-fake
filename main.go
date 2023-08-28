@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"math/rand"
-	"time"
 
 	oapi "github.com/deepmap/oapi-codegen/pkg/middleware"
-	"github.com/heww/harbor-scanner-fake/api"
-	"github.com/heww/harbor-scanner-fake/pkg/config"
-	"github.com/heww/harbor-scanner-fake/pkg/server"
+	"github.com/goharbor/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/pkg/config"
+	"github.com/goharbor/harbor-scanner-fake/pkg/server"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	log "github.com/sirupsen/logrus"
@@ -25,8 +23,6 @@ func init() {
 	flag.StringVar(&configPath, "config", config.DefaultConfigPath, "Path to the configuration file")
 	flag.StringVar(&configPath, "c", config.DefaultConfigPath, "Path to the configuration file (shorthand)")
 	flag.BoolVar(&debug, "d", false, "set debug on")
-
-	rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 }
 
 func main() {

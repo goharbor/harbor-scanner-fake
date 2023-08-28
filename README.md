@@ -13,7 +13,7 @@ Then:
 
 1. Clone this repostiroy
   ```shell
-  git clone https://github.com/heww/harbor-scanner-fake
+  git clone https://github.com/goharbor/harbor-scanner-fake
   cd harbor-scanner-fake
   ```
 
@@ -31,7 +31,7 @@ Then:
 You can also download the latest pre-build binary file.
 
 ```shell
-curl -sL $(curl -s https://api.github.com/repos/heww/harbor-scanner-fake/releases/latest | grep 'http.*linux-amd64.tar.gz"' | awk '{print $2}' | sed 's|[\"\,]*||g') | tar -zx
+curl -sL $(curl -s https://api.github.com/repos/goharbor/harbor-scanner-fake/releases/latest | grep 'http.*linux-amd64.tar.gz"' | awk '{print $2}' | sed 's|[\"\,]*||g') | tar -zx
 ```
 
 ## Configuration

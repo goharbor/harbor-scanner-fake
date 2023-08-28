@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/goharbor/harbor-scanner-fake/pkg/log"
 	"github.com/heetch/confita"
 	"github.com/heetch/confita/backend"
 	"github.com/heetch/confita/backend/env"
 	"github.com/heetch/confita/backend/file"
-	"github.com/heww/harbor-scanner-fake/pkg/log"
 )
 
 // DefaultConfigPath ...
@@ -26,22 +26,27 @@ func init() {
 // Config
 // --
 // db:
-//   total: 10000
+//
+//	total: 10000
+//
 // scanner:
-//   workers: 100
-//   skipPulling: true
-//   errorRate: 0
-//   vulnerableRate: 1
-//   vulnerabilitiesPerReport: 100
-//   reportGeneratingDuration: 0s
+//
+//	workers: 100
+//	skipPulling: true
+//	errorRate: 0
+//	vulnerableRate: 1
+//	vulnerabilitiesPerReport: 100
+//	reportGeneratingDuration: 0s
+//
 // server:
-//   address: 0.0.0.0:8080
-//   accessLog: true
-//   timeout: 0s
-//   delay:
-//     metadata: 0s
-//     acceptScanRequest: 0s
-//     getScanReport: 0s
+//
+//	address: 0.0.0.0:8080
+//	accessLog: true
+//	timeout: 0s
+//	delay:
+//	  metadata: 0s
+//	  acceptScanRequest: 0s
+//	  getScanReport: 0s
 type Config struct {
 	DB struct {
 		// The total count of the vulnerabilities in db
