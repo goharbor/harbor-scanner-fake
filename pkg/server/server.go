@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/heww/harbor-scanner-fake/api"
-	"github.com/heww/harbor-scanner-fake/pkg/config"
-	"github.com/heww/harbor-scanner-fake/pkg/db"
-	"github.com/heww/harbor-scanner-fake/pkg/scanner"
-	"github.com/heww/harbor-scanner-fake/pkg/util"
+	"github.com/goharbor/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/pkg/config"
+	"github.com/goharbor/harbor-scanner-fake/pkg/db"
+	"github.com/goharbor/harbor-scanner-fake/pkg/scanner"
+	"github.com/goharbor/harbor-scanner-fake/pkg/util"
 	"github.com/labstack/echo/v4"
 )
 

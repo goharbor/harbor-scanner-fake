@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/heww/harbor-scanner-fake/api"
-	"github.com/heww/harbor-scanner-fake/pkg/util"
+	"github.com/goharbor/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/pkg/util"
 )
 
 var (
@@ -19,10 +19,12 @@ var (
 	years          []int
 	maxVulsPerYear map[int]int
 	totalVuls      int64
+
+	randSeed *rand.Rand
 )
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	randSeed = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i, severity := range knowSeverities {
 		knowSeverityCodes[severity] = i
@@ -52,12 +54,12 @@ func Less(a, b api.Severity) bool {
 }
 
 func randomSeverity() api.Severity {
-	return knowSeverities[rand.Intn(len(knowSeverities))]
+	return knowSeverities[randSeed.Intn(len(knowSeverities))]
 }
 
 func randomCveId() string {
-	year := years[rand.Intn(len(years))]
-	digest := fmt.Sprintf("%d", rand.Intn(maxVulsPerYear[year]))
+	year := years[randSeed.Intn(len(years))]
+	digest := fmt.Sprintf("%d", randSeed.Intn(maxVulsPerYear[year]))
 
 	l := int(math.Log10(float64(maxVulsPerYear[year])))
 	if c := l - len(digest); c > 0 {
@@ -94,7 +96,7 @@ func generate(cveId string) *api.VulnerabilityItem {
 		Links:       &links,
 		Package:     &p,
 		PreferredCvss: &api.CVSSDetails{
-			ScoreV3: util.Float32(rand.Float32() * 10),
+			ScoreV3: util.Float32(randSeed.Float32() * 10),
 		},
 		Severity: &severity,
 		Version:  &version,

@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/heww/harbor-scanner-fake/api"
-	"github.com/heww/harbor-scanner-fake/pkg/util"
+	"github.com/goharbor/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/pkg/util"
 )
 
 func makeResolver(u *url.URL) remotes.Resolver {

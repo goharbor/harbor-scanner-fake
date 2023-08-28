@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/url"
 	"path/filepath"
@@ -14,17 +14,25 @@ import (
 	"github.com/containerd/containerd/content/local"
 	clog "github.com/containerd/containerd/log"
 	"github.com/deislabs/oras/pkg/oras"
+	"github.com/goharbor/harbor-scanner-fake/api"
+	"github.com/goharbor/harbor-scanner-fake/pkg/config"
+	"github.com/goharbor/harbor-scanner-fake/pkg/db"
+	"github.com/goharbor/harbor-scanner-fake/pkg/log"
+	"github.com/goharbor/harbor-scanner-fake/pkg/store"
+	"github.com/goharbor/harbor-scanner-fake/pkg/util"
 	"github.com/google/uuid"
-	"github.com/heww/harbor-scanner-fake/api"
-	"github.com/heww/harbor-scanner-fake/pkg/config"
-	"github.com/heww/harbor-scanner-fake/pkg/db"
-	"github.com/heww/harbor-scanner-fake/pkg/log"
-	"github.com/heww/harbor-scanner-fake/pkg/store"
-	"github.com/heww/harbor-scanner-fake/pkg/util"
 	"github.com/mborders/artifex"
 	wr "github.com/mroth/weightedrand"
 	"github.com/sirupsen/logrus"
 )
+
+var (
+	randSeed *rand.Rand
+)
+
+func init() {
+	randSeed = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
 
 const (
 	VulnerabilityDatabaseUpdatedAt = "harbor.scanner-adapter/vulnerability-database-updated-at"
@@ -148,7 +156,7 @@ func (s *Scanner) pull(ctx context.Context, req *api.ScanRequest) error {
 	}
 
 	logger := logrus.New()
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
 
 	resolver := makeResolver(u)
 
@@ -172,7 +180,7 @@ func (s *Scanner) generateReport(req *api.ScanRequest) (*api.HarborVulnerability
 	if s.vulnerableChooser.Pick().(bool) {
 		vulsPerReport := s.cfg.Scanner.VulnerabilitiesPerReport
 		if vulsPerReport == 0 {
-			vulsPerReport = rand.Int63n(s.db.Total())
+			vulsPerReport = randSeed.Int63n(s.db.Total())
 		}
 
 		picked := make(map[*api.VulnerabilityItem]bool, vulsPerReport)
