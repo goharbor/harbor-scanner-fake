@@ -52,7 +52,7 @@ func (s *Server) AcceptScanRequest(ctx echo.Context) error {
 func (s *Server) GetScanReport(ctx echo.Context, scanRequestId api.ScanRequestId, params api.GetScanReportParams) error {
 	time.Sleep(s.cfg.Server.Delay.GetScanReport)
 
-	report, err := s.scanner.GetReport(scanRequestId)
+	vulnReport, sbomReport, err := s.scanner.GetReport(scanRequestId)
 	if err != nil {
 		if errors.Is(err, scanner.ErrReportNotFound) {
 			return ctx.NoContent(http.StatusNotFound)
@@ -61,11 +61,20 @@ func (s *Server) GetScanReport(ctx echo.Context, scanRequestId api.ScanRequestId
 		return s.sendError(ctx, err)
 	}
 
-	if report == nil {
-		return ctx.Redirect(http.StatusFound, ctx.Request().RequestURI)
+	switch *params.Accept {
+	case scanner.MimeTypeSbomReport:
+		if sbomReport == nil {
+			return ctx.Redirect(http.StatusFound, ctx.Request().RequestURI)
+		}
+		return ctx.JSON(http.StatusOK, sbomReport)
+	case scanner.MimeTypeNativeReport, scanner.MimeTypeGenericVulnerabilityReport:
+		if vulnReport == nil {
+			return ctx.Redirect(http.StatusFound, ctx.Request().RequestURI)
+		}
+		return ctx.JSON(http.StatusOK, vulnReport)
+	default:
+		return ctx.JSON(http.StatusBadRequest, `{"errorMessage": "the Accept Header in the Request to get scan report is not supported"}`)
 	}
-
-	return ctx.JSON(http.StatusOK, report)
 }
 
 func New(cfg *config.Config) api.ServerInterface {

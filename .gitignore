@@ -90,3 +90,6 @@ junit-report.xml
 coverage.xml
 profile.cov
 config.yaml
+
+### Goland ###
+.idea

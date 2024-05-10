@@ -10,7 +10,8 @@ import (
 type memoryItem struct {
 	CreatedAt   time.Time
 	ScanRequest *api.ScanRequest
-	ScanReport  *api.HarborVulnerabilityReport
+	VulnReport  *api.HarborVulnerabilityReport
+	SbomReport  *api.HarborSbomReport
 	Error       error
 }
 
@@ -50,7 +51,8 @@ func (s *memoryStore) SetReportOrError(scanRequestId api.ScanRequestId, reportOr
 		return
 	}
 
-	item.ScanReport = reportOrError.Report
+	item.VulnReport = reportOrError.VulnReport
+	item.SbomReport = reportOrError.SbomReport
 	item.Error = reportOrError.Error
 
 	s.m.Store(scanRequestId, item)
@@ -62,5 +64,9 @@ func (s *memoryStore) GetReportOrError(scanRequestId api.ScanRequestId) (*Report
 		return nil, err
 	}
 
-	return &ReportOrError{Report: item.ScanReport, Error: item.Error}, nil
+	return &ReportOrError{
+		Error:      err,
+		VulnReport: item.VulnReport,
+		SbomReport: item.SbomReport,
+	}, nil
 }
