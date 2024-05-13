@@ -14,16 +14,17 @@ import (
 	"github.com/containerd/containerd/content/local"
 	clog "github.com/containerd/containerd/log"
 	"github.com/deislabs/oras/pkg/oras"
+	"github.com/google/uuid"
+	"github.com/mborders/artifex"
+	wr "github.com/mroth/weightedrand"
+	"github.com/sirupsen/logrus"
+
 	"github.com/goharbor/harbor-scanner-fake/api"
 	"github.com/goharbor/harbor-scanner-fake/pkg/config"
 	"github.com/goharbor/harbor-scanner-fake/pkg/db"
 	"github.com/goharbor/harbor-scanner-fake/pkg/log"
 	"github.com/goharbor/harbor-scanner-fake/pkg/store"
 	"github.com/goharbor/harbor-scanner-fake/pkg/util"
-	"github.com/google/uuid"
-	"github.com/mborders/artifex"
-	wr "github.com/mroth/weightedrand"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -35,6 +36,9 @@ func init() {
 }
 
 const (
+	CapabilityTypeSBOM          = "sbom"
+	CapabilityTypeVulnerability = "vulnerability"
+
 	VulnerabilityDatabaseUpdatedAt = "harbor.scanner-adapter/vulnerability-database-updated-at"
 
 	MimeTypeOCIArtifact    = "application/vnd.oci.image.manifest.v1+json"
@@ -42,11 +46,19 @@ const (
 
 	MimeTypeNativeReport               = "application/vnd.scanner.adapter.vuln.report.harbor+json; version=1.0"
 	MimeTypeGenericVulnerabilityReport = "application/vnd.security.vulnerability.report; version=1.1"
+	MimeTypeSbomReport                 = "application/vnd.security.sbom.report+json; version=1.0"
 )
 
 var (
 	ErrReportNotFound = errors.New("report not found")
 )
+
+type SbomPkg struct {
+	Name             string `json:"name"`
+	VersionInfo      string `json:"versionInfo"`
+	LicenseConcluded string `json:"licenseConcluded"`
+	LicenseDeclared  string `json:"licenseDeclared"`
+}
 
 type Scanner struct {
 	cfg        *config.Config
@@ -79,17 +91,17 @@ func (s *Scanner) Scan(scanRequest *api.ScanRequest) (api.ScanRequestId, error) 
 	return scanRequestId, nil
 }
 
-func (s *Scanner) GetReport(scanRequestId api.ScanRequestId) (*api.HarborVulnerabilityReport, error) {
+func (s *Scanner) GetReport(scanRequestId api.ScanRequestId) (*api.HarborVulnerabilityReport, *api.HarborSbomReport, error) {
 	reportOrError, err := s.store.GetReportOrError(scanRequestId)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, ErrReportNotFound
+			return nil, nil, ErrReportNotFound
 		}
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return reportOrError.Report, reportOrError.Error
+	return reportOrError.VulnReport, reportOrError.SbomReport, reportOrError.Error
 }
 
 func (s *Scanner) do(ctx context.Context, scanRequestId api.ScanRequestId) {
@@ -107,12 +119,12 @@ func (s *Scanner) do(ctx context.Context, scanRequestId api.ScanRequestId) {
 		}
 	}
 
-	report, err := s.generateReport(req)
+	vulnReport, sbomReport, err := s.generateReport(req)
 	if err != nil {
 		log.G(ctx).WithField("artifact", mustGetArtifact(req)).Error("generate report failed")
 	}
 
-	s.store.SetReportOrError(scanRequestId, &store.ReportOrError{Report: report, Error: err})
+	s.store.SetReportOrError(scanRequestId, &store.ReportOrError{VulnReport: vulnReport, SbomReport: sbomReport, Error: err})
 }
 
 func (s *Scanner) pull(ctx context.Context, req *api.ScanRequest) error {
@@ -165,7 +177,76 @@ func (s *Scanner) pull(ctx context.Context, req *api.ScanRequest) error {
 	return err
 }
 
-func (s *Scanner) generateReport(req *api.ScanRequest) (*api.HarborVulnerabilityReport, error) {
+func (s *Scanner) generateReport(req *api.ScanRequest) (*api.HarborVulnerabilityReport, *api.HarborSbomReport, error) {
+	// backward compatibility with pluggable-scanner-spec prior to v1.2
+	if len(*req.EnabledCapabilities) == 0 {
+		vulnReport, err := s.generateVulnerabilityReport(req)
+		return vulnReport, nil, err
+	}
+
+	// for pluggable-scanner-spec v1.2 and onwards
+	var vulnReport *api.HarborVulnerabilityReport
+	var sbomReport *api.HarborSbomReport
+	var err error
+	for _, capbility := range *req.EnabledCapabilities {
+		switch capbility.Type {
+		case CapabilityTypeVulnerability:
+			vulnReport, err = s.generateVulnerabilityReport(req)
+			if err != nil {
+				return nil, nil, err
+			}
+		case CapabilityTypeSBOM:
+			sbomReport, err = s.generateSbomReport(req)
+			if err != nil {
+				return nil, nil, err
+			}
+		default:
+			return nil, nil, fmt.Errorf("the capability type is not supported, type=%s", capbility.Type)
+		}
+	}
+	return vulnReport, sbomReport, err
+}
+
+func (s *Scanner) generateSbomReport(req *api.ScanRequest) (*api.HarborSbomReport, error) {
+	time.Sleep(s.cfg.Scanner.ReportGeneratingDuration)
+
+	now := time.Now()
+	var mediaType api.SbomParametersSbomMediaTypes
+	//Harbor currently only asks SPDX format of SBOM
+	mediaType = api.SbomParametersSbomMediaTypesApplicationspdxJson
+	artifactName := (*req.Artifact.Repository) + ":" + (*req.Artifact.Digest)
+	if req.Artifact.Tag != nil {
+		artifactName = (*req.Artifact.Repository) + ":" + (*req.Artifact.Tag)
+	}
+	var pkgs []*SbomPkg
+	sbomPkgNumPerReport := s.cfg.Scanner.SbomPackagesPerReport
+	for int64(len(pkgs)) < sbomPkgNumPerReport {
+		pkgs = append(pkgs, generateSbomPkgRecord())
+	}
+	sbomData := map[string]interface{}{
+		"SPDXID": "SPDXRef-DOCUMENT",
+		"createionInfo": struct {
+			Created  string   `json:"created"`
+			Creators []string `json:"creators"`
+		}{
+			Created:  time.Now().Format("2006-01-02T15:04:05.999999999Z"),
+			Creators: []string{"Tool: " + *s.metadata.Scanner.Name, "Organization: " + *s.metadata.Scanner.Vendor},
+		},
+		"name":     artifactName,
+		"packages": pkgs,
+	}
+
+	return &api.HarborSbomReport{
+		Artifact:         &req.Artifact,
+		GeneratedAt:      &now,
+		MediaType:        (*api.HarborSbomReportMediaType)(&mediaType),
+		Sbom:             &sbomData,
+		Scanner:          &s.metadata.Scanner,
+		VendorAttributes: nil,
+	}, nil
+}
+
+func (s *Scanner) generateVulnerabilityReport(req *api.ScanRequest) (*api.HarborVulnerabilityReport, error) {
 	time.Sleep(s.cfg.Scanner.ReportGeneratingDuration)
 
 	if s.errorChooser.Pick().(bool) {
@@ -224,20 +305,28 @@ func New(cfg *config.Config, db *db.DB) *Scanner {
 		wr.Choice{Item: false, Weight: uint(100 - cfg.Scanner.VulnerableRate*100)},
 	)
 
+	vulnType := api.ScannerCapabilityType(CapabilityTypeVulnerability)
+	sbomType := api.ScannerCapabilityType(CapabilityTypeSBOM)
 	metadata := api.ScannerAdapterMetadata{
-		Capabilities: []api.ScannerCapability{{
-			ConsumesMimeTypes: []string{MimeTypeOCIArtifact, MimeTypeDockerArtifact},
-			ProducesMimeTypes: []string{MimeTypeNativeReport, MimeTypeGenericVulnerabilityReport},
-		}},
-		Properties: &api.ScannerProperties{
-			AdditionalProperties: map[string]string{
-				VulnerabilityDatabaseUpdatedAt: time.Now().Format(time.RFC3339),
+		Capabilities: []api.ScannerCapability{
+			{
+				ConsumesMimeTypes: []string{MimeTypeOCIArtifact, MimeTypeDockerArtifact},
+				ProducesMimeTypes: []string{MimeTypeNativeReport, MimeTypeGenericVulnerabilityReport},
+				Type:              &vulnType,
+			},
+			{
+				ConsumesMimeTypes: []string{MimeTypeOCIArtifact, MimeTypeDockerArtifact},
+				ProducesMimeTypes: []string{MimeTypeSbomReport},
+				Type:              &sbomType,
 			},
 		},
+		Properties: &api.ScannerProperties{
+			VulnerabilityDatabaseUpdatedAt: time.Now().Format(time.RFC3339),
+		},
 		Scanner: api.Scanner{
-			Name:    util.String("Fake"),
-			Vendor:  util.String("Fake Scanner"),
-			Version: util.String("v1.0.0"),
+			Name:    util.String("Fake-Scanner"),
+			Vendor:  util.String("Fake-Scanner-Vendor"),
+			Version: util.String("v1.1.0"),
 		},
 	}
 

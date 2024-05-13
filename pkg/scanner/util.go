@@ -10,6 +10,8 @@ import (
 
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/google/uuid"
+
 	"github.com/goharbor/harbor-scanner-fake/api"
 	"github.com/goharbor/harbor-scanner-fake/pkg/util"
 )
@@ -77,4 +79,31 @@ func mustGetArtifact(req *api.ScanRequest) string {
 	}
 
 	return fmt.Sprintf("%s/%s@%s", u.Host, *req.Artifact.Repository, *req.Artifact.Digest)
+}
+
+func generateSbomPkgRecord() *SbomPkg {
+	pkgName := "pkg-name-" + uuid.NewString()
+	pkgVersionInfo := getVersionInfo()
+	licenseConcluded := getLicense()
+	licenseDeclared := getLicense()
+
+	return &SbomPkg{
+		Name:             pkgName,
+		VersionInfo:      pkgVersionInfo,
+		LicenseConcluded: licenseConcluded,
+		LicenseDeclared:  licenseDeclared,
+	}
+}
+
+func getVersionInfo() string {
+	major := randSeed.Intn(5)
+	minor := randSeed.Intn(10)
+	patch := randSeed.Intn(20)
+	rNum := randSeed.Intn(20)
+	return fmt.Sprintf("%d.%d.%d-r%d", major, minor, patch, rNum)
+}
+
+func getLicense() string {
+	licenseList := []string{"GPL-2.0-only", "MIT", "MPL-2.0 AND MIT", "BSD-2-Clause AND BSD-3-Clause", "BSD-3-Clause AND MIT", "MIT AND BSD-3-Clause AND GPL-2.0-only"}
+	return licenseList[randSeed.Intn(len(licenseList))]
 }

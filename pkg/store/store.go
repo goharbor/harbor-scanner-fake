@@ -12,8 +12,9 @@ var (
 )
 
 type ReportOrError struct {
-	Error  error
-	Report *api.HarborVulnerabilityReport
+	Error      error
+	VulnReport *api.HarborVulnerabilityReport
+	SbomReport *api.HarborSbomReport
 }
 
 type Store interface {

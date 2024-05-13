@@ -69,6 +69,9 @@ type Config struct {
 		// The vulnerabilities count in the artifact
 		VulnerabilitiesPerReport int64 `config:"scanner-vulnerabilities-per-report" yaml:"vulnerabilitiesPerReport"`
 
+		// The package count in the SBOM of an artifact
+		SbomPackagesPerReport int64 `config:"sbom-packages-per-report" yaml:"sbomPackagesPerReport"`
+
 		// The duration to generate the scan report after artifact pulled
 		ReportGeneratingDuration time.Duration `config:"scanner-report-generating-duration" yaml:"reportGeneratingDuration"`
 	}
@@ -107,6 +110,10 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("scanner.vulnerabilitiesPerReport %d must less or equal with db.Total %d", cfg.Scanner.VulnerabilitiesPerReport, cfg.DB.Total)
 	}
 
+	if cfg.Scanner.SbomPackagesPerReport <= 0 {
+		return fmt.Errorf("scanner.SbomPackagesPerReport %d must be larger than 0", cfg.Scanner.SbomPackagesPerReport)
+	}
+
 	return nil
 }
 
@@ -119,6 +126,7 @@ func Load(paths ...string) (*Config, error) {
 	cfg.Scanner.SkipPulling = true
 	cfg.Scanner.VulnerableRate = 1
 	cfg.Scanner.VulnerabilitiesPerReport = 100
+	cfg.Scanner.SbomPackagesPerReport = 10
 
 	cfg.Server.Address = "0.0.0.0:8080"
 	cfg.Server.AsscessLog = true

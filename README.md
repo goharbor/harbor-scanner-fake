@@ -45,7 +45,7 @@ When run the scanner, we can privide a yaml file to customize the behavior of th
 Here is a example yaml file
 
 ```yaml
---
+---
 db:
   total: 10000  # The total count of the vulnerabilities in db
 scanner:

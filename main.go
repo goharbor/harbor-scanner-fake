@@ -3,16 +3,16 @@ package main
 import (
 	"flag"
 
-	oapi "github.com/deepmap/oapi-codegen/pkg/middleware"
 	"github.com/goharbor/harbor-scanner-fake/api"
 	"github.com/goharbor/harbor-scanner-fake/pkg/config"
 	"github.com/goharbor/harbor-scanner-fake/pkg/server"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	mw "github.com/oapi-codegen/echo-middleware"
 	log "github.com/sirupsen/logrus"
 )
 
-//go:generate go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen -generate types,server,spec -package api -o ./api/api.gen.go ./api/openapi.yaml
+//go:generate go run github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen -generate types,server,spec -package api -o ./api/api.gen.go ./api/openapi.yaml
 
 var (
 	configPath string
@@ -56,7 +56,8 @@ func main() {
 		e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{Timeout: cfg.Server.Timeout}))
 	}
 
-	e.Use(oapi.OapiRequestValidator(swagger))
+	// Validate requests against the OpenAPI spec
+	e.Use(mw.OapiRequestValidator(swagger))
 
 	api.RegisterHandlersWithBaseURL(e, s, "/api/v1")
 
